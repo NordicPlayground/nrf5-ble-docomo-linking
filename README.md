@@ -1,8 +1,7 @@
 nrf5-ble-docomo-linking
 =======================
 
- This repository contains code examples that show how to implement DoCoMo Linking BLE device on nRF5.
- For more inforamtion about DoCoMo Linking IoT project, please visit https://linkingiot.com/en/
+ This repository contains code examples that show how to implement DoCoMo Linking BLE device on nRF5. For more information about DoCoMo Linking IoT project, please visit https://linkingiot.com/en/.
  
 Requirements
 ------------
@@ -12,23 +11,13 @@ Requirements
 - nRF51-DK (to be supported)
 - S130 v2.0.1 (to be supported)
 
-To compile it, clone the repository into the \nRF5_SDK_11.0.0_89a8197 folder.
-If you download the zip, please place 
-.\components\ble\ble_services\experimental_ble_pdlp to \nRF5_SDK_11.0.0_89a8197\components\ble\ble_services
-.\examples\ble_peripheral\* to \nRF5_SDK_11.0.0_89a8197\examples\ble_peripheral
+To compile it, clone the repository into the \nRF5_SDK_11.0.0_89a8197 folder. If you download the zip, please copy \components\ble\ble_services\experimental_ble_pdlp to \nRF5_SDK_11.0.0_89a8197\components\ble\ble_services, and \examples\ble_peripheral\* to \nRF5_SDK_11.0.0_89a8197\examples\ble_peripheral.
 
 Documentation
 -----------------
-NTT DoCoMo Linking porject device specification, please refer to https://linkingiot.com/en/developer/
-Sample implementation of the Peripheral Device Link Profile (PDLP), please refer to \components\ble\ble_services\experimental_ble_pdlp\ble_pdlp.h
-About the sample application projects:
-  .experimental_ble_app_linking_button, demonstrate the PDLP profile, Property Information Service (PIS) and Operation Service (OS)
-  .experimental_ble_app_linking_led, demonstrate the PDLP profile, Property Information Service (PIS), Notification Service (NS) and Setting Operation Service (SOS)
+NTT DoCoMo Linking project device specification, please refer to https://linkingiot.com/en/developer/. Sample implementation of the Peripheral Device Link Profile (PDLP), please refer to the header file of ble_pdlp.h. About the sample application projects, the experimental_ble_app_linking_button demonstrates the PDLP profile, Property Information Service (PIS) and Operation Service (OS). The experimental_ble_app_linking_led demonstrates the PDLP profile, Property Information Service (PIS), Notification Service (NS) and Setting Operation Service (SOS).
 
-NOTE the implementation is solely for demo purpose, so it is NOT optimized and does NOT have product quality.
-NOTE the sample project is NOT fully tested, as lack of test applications on Smart Phones.
-
-The test is done with DoCoMo Linking app on Android, and the "LinkingIFDemo" app found in Linking Android SDK on https://linkingiot.com/en/developer/.
+NOTE the implementation is solely for demo purpose, so it is NOT optimized and does NOT have product quality. The sample project is NOT fully tested, due to lack of test applications on Smart Phones. The test is done with DoCoMo Linking app on Android, and the "LinkingIFDemo" app found in Linking Android SDK on https://linkingiot.com/en/developer/.
 
 About this project
 ------------------
