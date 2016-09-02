@@ -602,6 +602,8 @@ static ble_pdls_result_code_t PDSIS_service_handler(ble_pdls_t * p_pdls, uint16_
           *rsp_len   = m_data_pos - m_rsp_buf;
           result = PDLS_RESULT_OK;  // allow sending ACK
       }
+      break;
+
       default:
         return PDLS_RESULT_ERROR_NOT_SUPPORT;
     }
