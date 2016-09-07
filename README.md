@@ -5,9 +5,12 @@ nrf5-ble-docomo-linking
  
 Requirements
 ------------
+The following toolchains/devices have been used for testing and verification:
+- ARM: MDK-ARM version 5.18a
+- GCC: GCC ARM Embedded 4.9 2015q3
 - nRF5 SDK version 11.0.0
-- nRF52 PCA10040/S132 v2.0.1
-- nRF51 PCA10028/S130 v2.0.1
+- nRF52 PCA10040 with S132 v2.0.1
+- nRF51 PCA10028 with S130 v2.0.1
 
 To compile it, clone the repository into the \nRF5_SDK_11.0.0_89a8197 folder. 
 
