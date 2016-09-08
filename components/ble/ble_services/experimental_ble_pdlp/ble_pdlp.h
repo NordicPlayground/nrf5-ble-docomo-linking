@@ -207,7 +207,12 @@ typedef union
     uint32_t y_threshold;
     uint32_t z_threshold;
   } threshold;
-  uint32_t originaldata[3];  // TBD
+  int8_t   s8_originaldata[12];
+  uint8_t  u8_originaldata[12];
+  int16_t  s16_originaldata[6];
+  uint16_t u16_originaldata[6];
+  int32_t  s32_originaldata[3];
+  uint32_t u32_originaldata[3];
 } ble_pdsis_notify_value_t;
 
 /**@brief PDSIS events */

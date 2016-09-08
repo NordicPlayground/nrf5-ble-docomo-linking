@@ -74,8 +74,9 @@
 
 #define DEAD_BEEF                        0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-#define PDSIS_NOTIFY_INTERVAL            APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER) /**< PDSIS Notify interval (ticks). */
-APP_TIMER_DEF(m_pdsis_notify_timer_id);                                             /**< PDSIS Notify timer */
+#define PDSIS_NOTIFY_INTERVAL            APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< PDSIS Notify interval (ticks). */
+APP_TIMER_DEF(m_pdsis_notify_timer_tmp);                                            /**< PDSIS Notify timer for temperature notification*/
+APP_TIMER_DEF(m_pdsis_notify_timer_hum);                                            /**< PDSIS Notify timer for humidity notification*/
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static ble_pdls_t                       m_pdls;                                     /**< PDLP Service instance. */
@@ -96,7 +97,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
-static void pdsis_timeout_handler(void * p_context)
+static void pdsis_temp_timeout_handler(void * p_context)
 {
     int32_t  i_temp;
     
@@ -105,12 +106,22 @@ static void pdsis_timeout_handler(void * p_context)
     if (err_code == NRF_SUCCESS)
     {
         ble_pdsis_notify_value_t value;
-        ble_pdls_t * p_pdls   = (ble_pdls_t *)p_context;
-        uint16_t u_temp       = IEEE754_Convert_Temperature((float)i_temp*0.25f);
-        value.originaldata[0] = (uint32_t)u_temp;
+        ble_pdls_t * p_pdls       = (ble_pdls_t *)p_context;
+        value.u16_originaldata[0] = IEEE754_Convert_Temperature(i_temp*0.25f);
         
         ble_pdls_pdsis_notify(p_pdls, PDSIS_SENSOR_TYPE_TEMPERATURE, &value);
     }
+}
+
+static void pdsis_hum_timeout_handler(void * p_context)
+{
+    // handcoded humidity value
+    ble_pdsis_notify_value_t value;
+
+    ble_pdls_t * p_pdls   = (ble_pdls_t *)p_context;
+    value.u16_originaldata[0] = IEEE754_Convert_Humidity(50.00f);  // 50.00%
+    
+    ble_pdls_pdsis_notify(p_pdls, PDSIS_SENSOR_TYPE_HUMIDITY, &value);
 }
 
 /**@brief Function for the Timer initialization.
@@ -119,12 +130,18 @@ static void pdsis_timeout_handler(void * p_context)
  */
 static void timers_init(void)
 {
+    uint32_t err_code;
+
     // Initialize timer module, making it use the scheduler
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
     // Create timers.
-    uint32_t err_code = app_timer_create(&m_pdsis_notify_timer_id,
+    err_code = app_timer_create(&m_pdsis_notify_timer_tmp,
                                 APP_TIMER_MODE_REPEATED,
-                                pdsis_timeout_handler);
+                                pdsis_temp_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+    err_code = app_timer_create(&m_pdsis_notify_timer_hum,
+                                APP_TIMER_MODE_REPEATED,
+                                pdsis_hum_timeout_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -242,12 +259,38 @@ static ble_pdls_result_code_t pdsis_event_handler(ble_pdls_t * p_pdls, ble_pdsis
             if (status == PDSIS_STATUS_ON)
             {
                 // Start timer to send temperature notification
-                err_code = app_timer_start(m_pdsis_notify_timer_id, PDSIS_NOTIFY_INTERVAL, (void *)p_pdls);
+                err_code = app_timer_start(m_pdsis_notify_timer_tmp, PDSIS_NOTIFY_INTERVAL, (void *)p_pdls);
             }
             else if (status == PDSIS_STATUS_OFF)
             {
                 // Start timer to send temperature notification
-                err_code = app_timer_stop(m_pdsis_notify_timer_id);
+                err_code = app_timer_stop(m_pdsis_notify_timer_tmp);
+            }
+            else
+            {
+                err_code = NRF_ERROR_INVALID_PARAM;
+            }
+            // send handling result back to PDLP
+            if (err_code != NRF_SUCCESS)
+            {
+              return PDLS_RESULT_ERROR_FAILED;
+            }
+            else
+            {
+              return PDLS_RESULT_OK;
+            }
+          }
+          else if (p_pdsis_event->type == PDSIS_SENSOR_TYPE_HUMIDITY)
+          {
+            if (status == PDSIS_STATUS_ON)
+            {
+                // Start timer to send temperature notification
+                err_code = app_timer_start(m_pdsis_notify_timer_hum, PDSIS_NOTIFY_INTERVAL, (void *)p_pdls);
+            }
+            else if (status == PDSIS_STATUS_OFF)
+            {
+                // Start timer to send temperature notification
+                err_code = app_timer_stop(m_pdsis_notify_timer_hum);
             }
             else
             {
@@ -273,7 +316,6 @@ static ble_pdls_result_code_t pdsis_event_handler(ble_pdls_t * p_pdls, ble_pdsis
           if (p_pdsis_event->type == PDSIS_SENSOR_TYPE_TEMPERATURE)
           {
             int32_t  i_temp;
-            uint16_t u_temp;
             
             // Read SoC temperature
             err_code = sd_temp_get(&i_temp);
@@ -282,8 +324,12 @@ static ble_pdls_result_code_t pdsis_event_handler(ble_pdls_t * p_pdls, ble_pdsis
               return PDLS_RESULT_ERROR_FAILED;
             }
             // Encode in DoCoMo format
-            u_temp = IEEE754_Convert_Temperature((float)i_temp*0.25f);
-            p_pdsis_event->data.originaldata[0] = (uint32_t)u_temp;
+            p_pdsis_event->data.u16_originaldata[0] = IEEE754_Convert_Temperature(i_temp*0.25f);
+            return PDLS_RESULT_OK;
+          }
+          else if (p_pdsis_event->type == PDSIS_SENSOR_TYPE_HUMIDITY)
+          {
+            p_pdsis_event->data.u16_originaldata[0] = IEEE754_Convert_Humidity(60.00f);
             return PDLS_RESULT_OK;
           }
           else
@@ -308,11 +354,11 @@ static void services_init(void)
     init.servicelist          = PDPIS_SERVICE_BITMASK_PIS | PDPIS_SERVICE_BITMASK_SIS;
     init.deviceid             = 0xABCD;     // any data
     init.deviceuid            = 0xAABBCCDD; // any data
-    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_HASLED;
+    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_NONE;
     //PDNS
     init.notifycategory       = PDNS_NOTIFY_CATEGORY_NOTNOTIFY;
     //PDSIS
-    init.sensortypes          = PDSIS_SENSOR_BITMASK_TEMPERATURE;
+    init.sensortypes          = PDSIS_SENSOR_BITMASK_TEMPERATURE | PDSIS_SENSOR_BITMASK_HUMIDITY;
     init.pdsis_event_handler  = pdsis_event_handler;
   
     err_code = ble_pdls_init(&m_pdls, &init);

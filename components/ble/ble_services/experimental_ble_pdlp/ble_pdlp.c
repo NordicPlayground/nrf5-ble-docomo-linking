@@ -529,7 +529,7 @@ static ble_pdls_result_code_t PDSIS_service_handler(ble_pdls_t * p_pdls, uint16_
                 // param #1 Reult code
                 m_data_pos += pdls_encode_param_uint8(m_data_pos, PDSIS_PARAM_RESULTCODE, PDLS_RESULT_OK);
                 // param #2 OriginalData
-                m_data_pos += pdls_encode_param_uint32(m_data_pos, PDSIS_PARAM_X_VALUE, event_data.data.originaldata[0]);
+                m_data_pos += pdls_encode_param_uint16(m_data_pos, PDSIS_PARAM_X_VALUE, event_data.data.u16_originaldata[0]);
             }
           }
           else
@@ -989,7 +989,7 @@ uint32_t ble_pdls_pdsis_notify(ble_pdls_t * p_pdls, ble_pdsis_sensor_type_t sens
           // param #1 sensor type
           m_data_pos += pdls_encode_param_uint8(m_data_pos, PDSIS_PARAM_SENSORTYPE, (uint8_t)sensor_type);
           // param #2 OriginalData in DoCoMo foramt (12-bit)
-          m_data_pos += pdls_encode_param_uint8(m_data_pos, PDSIS_PARAM_X_VALUE, (uint8_t)p_notify_value->originaldata[0]);
+          m_data_pos += pdls_encode_param_uint16(m_data_pos, PDSIS_PARAM_ORIGINALDATA, p_notify_value->u16_originaldata[0]);
           break;
         
         default:
