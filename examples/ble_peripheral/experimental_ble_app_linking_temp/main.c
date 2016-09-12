@@ -30,7 +30,6 @@
 #include "ble_pdlp.h"
 #include "softdevice_handler.h"
 #include "app_timer.h"
-#include "app_button.h"
 #include "bsp.h"
 #include "ble_gap.h"
 #include "fstorage.h"
@@ -115,11 +114,14 @@ static void pdsis_temp_timeout_handler(void * p_context)
 
 static void pdsis_hum_timeout_handler(void * p_context)
 {
+    static uint8_t count = 1;
+  
     // handcoded humidity value
     ble_pdsis_notify_value_t value;
 
     ble_pdls_t * p_pdls   = (ble_pdls_t *)p_context;
-    value.u16_originaldata[0] = IEEE754_Convert_Humidity(50.00f);  // 50.00%
+    value.u16_originaldata[0] = IEEE754_Convert_Humidity(count*10.00f);  // %
+    if (++count > 10) count = 1;
     
     ble_pdls_pdsis_notify(p_pdls, PDSIS_SENSOR_TYPE_HUMIDITY, &value);
 }
@@ -354,7 +356,7 @@ static void services_init(void)
     init.servicelist          = PDPIS_SERVICE_BITMASK_PIS | PDPIS_SERVICE_BITMASK_SIS;
     init.deviceid             = 0xABCD;     // any data
     init.deviceuid            = 0xAABBCCDD; // any data
-    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_NONE;
+    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_TEMPERATURE | PDPIS_CAPABILITY_BITMASK_HUMIDITY;
     //PDNS
     init.notifycategory       = PDNS_NOTIFY_CATEGORY_NOTNOTIFY;
     //PDSIS
@@ -434,16 +436,11 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_CONNECTED:
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-
-            err_code = app_button_disable();
-            APP_ERROR_CHECK(err_code);
-
             err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
             APP_ERROR_CHECK(err_code);
 

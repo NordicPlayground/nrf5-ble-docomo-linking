@@ -81,6 +81,7 @@
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static ble_pdls_t                       m_pdls;                                     /**< PDLP Service instance. */
+static uint16_t                         m_pdns_get_parameter;
 
 /**@brief Function for assert macro callback.
  *
@@ -232,6 +233,7 @@ ble_pdls_result_code_t pdns_event_handler(ble_pdls_t * p_pdls, ble_pdns_event_da
 {
     uint32_t err_code = NRF_SUCCESS;
     static uint16_t unique_id;
+    static bool led_on = false;
    
     NRF_LOG_PRINTF("[LINKING] PDNS event received: %02x\r\n", p_pdns_event->event);
     switch (p_pdns_event->event)
@@ -242,11 +244,35 @@ ble_pdls_result_code_t pdns_event_handler(ble_pdls_t * p_pdls, ble_pdns_event_da
           {
             case PDNS_NOTIFY_CATEGORY_ETC:
             {
-              if (p_pdns_event->data.notifyinfo.parameteridlist & PDNS_PARAMID_ETC_PACKAGE)
+              if ( p_pdns_event->data.notifyinfo.parameteridlist & PDNS_PARAMID_ETC_PACKAGE)
               {
                   unique_id = p_pdns_event->data.notifyinfo.uniqueid;
                   err_code = ble_pdls_pdns_get_pd_notify_detail_data(p_pdls, unique_id, PDNS_PARAM_PACKAGE, 0);
+                  m_pdns_get_parameter = PDNS_PARAMID_ETC_PACKAGE;
               }
+            }
+            break;
+
+            case PDNS_NOTIFY_CATEGORY_GENERAL:
+            {
+              if (p_pdns_event->data.notifyinfo.parameteridlist & PDNS_PARAMID_GENERAL_PACKAGE)
+              {
+                  unique_id = p_pdns_event->data.notifyinfo.uniqueid;
+                  err_code = ble_pdls_pdns_get_pd_notify_detail_data(p_pdls, unique_id, PDNS_PARAM_PACKAGE, 0);
+                  m_pdns_get_parameter = PDNS_PARAMID_GENERAL_PACKAGE;
+              }
+//              if (p_pdns_event->data.notifyinfo.parameteridlist & PDNS_PARAMID_GENERAL_NOTIFYID)
+//              {
+//                  unique_id = p_pdns_event->data.notifyinfo.uniqueid;
+//                  err_code = ble_pdls_pdns_get_pd_notify_detail_data(p_pdls, unique_id, PDNS_PARAM_NOTIFYID, 2);
+//                  m_pdns_get_parameter = PDNS_PARAMID_GENERAL_NOTIFYID;
+//              }
+//             else if (p_pdns_event->data.notifyinfo.parameteridlist & PDNS_PARAMID_GENERAL_NOTIFYCATEGORY)
+//              {
+//                  unique_id = p_pdns_event->data.notifyinfo.uniqueid;
+//                  err_code = ble_pdls_pdns_get_pd_notify_detail_data(p_pdls, unique_id, PDNS_PARAM_NOTIFYCATEGORY, 2);
+//                  m_pdns_get_parameter = PDNS_PARAMID_GENERAL_NOTIFYCATEGORY;
+//              }              
             }
             break;
             
@@ -257,7 +283,6 @@ ble_pdls_result_code_t pdns_event_handler(ble_pdls_t * p_pdls, ble_pdns_event_da
             case PDNS_NOTIFY_CATEGORY_PHONEIDLE:
             case PDNS_NOTIFY_CATEGORY_MAIL:
             case PDNS_NOTIFY_CATEGORY_SCHEDULE:
-            case PDNS_NOTIFY_CATEGORY_GENERAL:
             default:
               break;
           }
@@ -269,7 +294,34 @@ ble_pdls_result_code_t pdns_event_handler(ble_pdls_t * p_pdls, ble_pdns_event_da
         if ((PDLS_RESULT_OK == p_pdns_event->data.notifydetail.result) &&
             (unique_id == p_pdns_event->data.notifydetail.uniqueid))
         {
-            NRF_LOG_PRINTF("[LINKING] Package: %s\r\n", p_pdns_event->data.notifydetail.data.p_val);
+            switch (m_pdns_get_parameter)
+            {
+              case PDNS_PARAMID_GENERAL_PACKAGE:
+                NRF_LOG_PRINTF("[LINKING] Package: %s\r\n", p_pdns_event->data.notifydetail.data.p_val);
+                break;
+              case PDNS_PARAMID_GENERAL_NOTIFYID:
+                NRF_LOG_PRINTF("[LINKING] NotifyID: %04x\r\n", *(uint16_t *)p_pdns_event->data.notifydetail.data.p_val);
+                break;
+              case PDNS_PARAMID_GENERAL_NOTIFYCATEGORY:
+                NRF_LOG_PRINTF("[LINKING] NotifyCategory: %04x\r\n", *(uint16_t *)p_pdns_event->data.notifydetail.data.p_val);
+                break;
+              default:
+                break;
+            }
+
+            // toggle LED after parameter is fetched 
+            if (led_on)
+            { 
+              NRF_LOG_PRINTF("[LINKING] Turn OFF LEDs\r\n");
+              err_code = bsp_indication_set(BSP_INDICATE_USER_STATE_OFF);
+              led_on = false;
+            }
+            else
+            {
+              NRF_LOG_PRINTF("[LINKING] Turn ON LEDs\r\n");
+              err_code = bsp_indication_set(BSP_INDICATE_USER_STATE_ON);
+              led_on = true;
+            }
         }
       }
       break;
@@ -348,9 +400,10 @@ static void services_init(void)
                                 PDPIS_SERVICE_BITMASK_SOS;
     init.deviceid             = 0xEEFF;     // any data
     init.deviceuid            = 0xDEADBEAF; // any data
-    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_HASLED;
+    init.devicecapability     = PDPIS_CAPABILITY_BITMASK_NONE;
 
-    init.notifycategory       = PDNS_NOTIFY_CATEGORY_ETC;
+    init.notifycategory       = PDNS_NOTIFY_CATEGORY_GENERAL;
+    //init.notifycategory       = PDNS_NOTIFY_CATEGORY_ETC;  //For LinkIFDemo app
     init.pdns_event_handler   = pdns_event_handler;
     
     init.pdsos_event_handler  = pdsos_event_handler;
@@ -561,22 +614,6 @@ void bsp_event_handler(bsp_event_t event)
             }
             break;
             
-        case BSP_EVENT_KEY_0:
-            err_code = ble_pdls_pdos_notify(&m_pdls, PDOS_BUTTON_ID_VOLUMEUP);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-            break;
-
-        case BSP_EVENT_KEY_1:
-            err_code = ble_pdls_pdos_notify(&m_pdls, PDOS_BUTTON_ID_VOLUMEDOWN);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-            break;
-
         default:
             break;
     }

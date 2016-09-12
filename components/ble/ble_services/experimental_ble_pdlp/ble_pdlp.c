@@ -650,7 +650,8 @@ static ble_pdls_result_code_t PDNS_service_handler(ble_pdls_t * p_pdls, uint16_t
           // Check notification category
           result = pdls_decode_param_uint16(m_data_pos, PDNS_PARAM_NOTIFYCATEGORY, (uint16_t *)&event_data.data.notifyinfo.notifycategory);
           ERROR_CHECK(result);
-          if ((m_pdlp_service.notifycategory & event_data.data.notifyinfo.notifycategory) == 0)
+          if ((m_pdlp_service.notifycategory != PDNS_NOTIFY_CATEGORY_ALL) &&
+              ((m_pdlp_service.notifycategory & event_data.data.notifyinfo.notifycategory)==0))
           {
             // Notify category not supported
             return PDLS_RESULT_ERROR_NOT_SUPPORT;

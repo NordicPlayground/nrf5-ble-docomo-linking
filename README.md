@@ -24,9 +24,9 @@ References:
 
 
 About the sample application projects, 
-- experimental_ble_app_linking_button demonstrates the PDLP profile, Property Information Service (PIS) and Operation Service (OS)
-- experimental_ble_app_linking_led demonstrates the PDLP profile, Property Information Service (PIS), Notification Service (NS) and Setting Operation Service (SOS)
-- experimental_ble_app_linking_temp demonstrates the PDLP profile, Property Information Service (PIS), Sensor Information Service (SIS). NOTE this sample has NOT been tested due to lack of Linking app to do so
+- experimental_ble_app_linking_button demonstrates the PDLP profile, Property Information Service (PIS) and Operation Service (OS). Tested with DoCoMo LinkIFDemo.apk in Android SDK.
+- experimental_ble_app_linking_led demonstrates the PDLP profile, Property Information Service (PIS), Notification Service (NS) and Setting Operation Service (SOS). Tested with "天気予報通知" app in Google Play.
+- experimental_ble_app_linking_temp demonstrates the PDLP profile, Property Information Service (PIS), Sensor Information Service (SIS). Tested with "温湿度アプリ" app in Google Play.
 - experimental_ble_app_linking_beacon demonstrates Linking beacon format. The implementation is based on Nordic Solar Beacon project (https://github.com/NordicSemiconductor/solar_sensor_beacon), which does not use softdevice and requires no SDK.
 
 NOTE the implementation is solely for demo purpose, so it is NOT optimized and does NOT have product quality. The sample project is NOT fully tested, due to lack of test applications on Smart Phones. The test is done with DoCoMo Linking app on Android, and the "LinkingIFDemo" app found in Linking Android SDK on https://linkingiot.com/en/developer/

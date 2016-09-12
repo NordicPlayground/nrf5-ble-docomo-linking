@@ -80,11 +80,14 @@ typedef struct ble_pdls_s
 #define PDPIS_SERVICE_BITMASK_SIS              0x08
 #define PDPIS_SERVICE_BITMASK_SOS              0x10
 
-#define PDPIS_CAPABILITY_BITMASK_NONE          0x00
-#define PDPIS_CAPABILITY_BITMASK_HASLED        0x01
+#define PDPIS_CAPABILITY_BITMASK_NONE          0x01
 #define PDPIS_CAPABILITY_BITMASK_GYROSCOPE     0x02
 #define PDPIS_CAPABILITY_BITMASK_ACCELERATOR   0x04
 #define PDPIS_CAPABILITY_BITMASK_ORIENTATION   0x08
+#define PDPIS_CAPABILITY_BITMASK_BATTERY       0x10
+#define PDPIS_CAPABILITY_BITMASK_TEMPERATURE   0x20
+#define PDPIS_CAPABILITY_BITMASK_HUMIDITY      0x40
+#define PDPIS_CAPABILITY_BITMASK_RESERVED      0x80
 
 #define PDPIS_GET_DEVICE_INFORMATION           0x0000
 #define PDPIS_GET_DEVICE_INFORMATION_RESP      0x0001
@@ -291,8 +294,8 @@ typedef ble_pdls_result_code_t (*ble_pdsis_event_handler_t) (ble_pdls_t * p_pdls
 #define PDNS_PARAMID_GENERAL_PACKAGE                    0x0004
 #define PDNS_PARAMID_GENERAL_TITLE                      0x0008
 #define PDNS_PARAMID_GENERAL_TEXT                       0x0010
-#define PDNS_PARAMID_GENERAL_NOTIFYID                   0x0100
-#define PDNS_PARAMID_GENERAL_NOTIFYCATEGORY             0x0200
+#define PDNS_PARAMID_GENERAL_NOTIFYID                   0x0020
+#define PDNS_PARAMID_GENERAL_NOTIFYCATEGORY             0x0040
 #define PDNS_PARAMID_ETC_APPNAME                        0x0001
 #define PDNS_PARAMID_ETC_APPNAMELOCAL                   0x0002
 #define PDNS_PARAMID_ETC_PACKAGE                        0x0004
