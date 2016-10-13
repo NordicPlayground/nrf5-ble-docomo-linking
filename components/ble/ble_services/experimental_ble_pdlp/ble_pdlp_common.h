@@ -9,8 +9,8 @@
  * the file.
  *
  */
-#ifndef BLE_PDLP_UTIL_H__
-#define BLE_PDLP_UTIL_H__
+#ifndef BLE_PDLP_COMMON_H__
+#define BLE_PDLP_COMMON_H__
 
 #include <stdint.h>
 #include <string.h>
@@ -56,6 +56,6 @@ uint16_t IEEE754_Convert_Temperature(float f_value);
 uint16_t IEEE754_Convert_Humidity(float f_value);
 uint16_t IEEE754_Convert_Air_Pressure(float f_value);
 
-#endif // BLE_PDLP_UTIL_H__
+#endif // BLE_PDLP_COMMON_H__
 
 /** @} */

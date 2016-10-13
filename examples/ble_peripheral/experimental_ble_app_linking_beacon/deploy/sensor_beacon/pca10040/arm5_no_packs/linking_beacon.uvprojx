@@ -14,7 +14,7 @@
         <TargetCommonOption>
           <Device>nRF52832_xxAA</Device>
           <Vendor>Nordic Semiconductor</Vendor>
-          <PackID>NordicSemiconductor.nRF_DeviceFamilyPack.8.7.1</PackID>
+          <PackID>NordicSemiconductor.nRF_DeviceFamilyPack.8.9.0</PackID>
           <PackURL>http://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/</PackURL>
           <Cpu>IROM(0x00000000,0x80000) IRAM(0x20000000,0x10000) CPUTYPE("Cortex-M4") FPU2 CLOCK(64000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
@@ -367,9 +367,9 @@
             <v6LangP>0</v6LangP>
             <VariousControls>
               <MiscControls>--c99</MiscControls>
-              <Define></Define>
+              <Define>FPU_INTERRUPT_MODE,NRF52</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\inc</IncludePath>
+              <IncludePath>..\..\..\inc;..\..\..\..\..\..\..\components\ble\ble_services\experimental_ble_pdlp</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -416,6 +416,11 @@
               <FileName>sensor_beacon.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\sensor_beacon.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_pdlp_common.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\..\components\ble\ble_services\experimental_ble_pdlp\ble_pdlp_common.c</FilePath>
             </File>
           </Files>
         </Group>

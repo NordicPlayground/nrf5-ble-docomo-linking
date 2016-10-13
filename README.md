@@ -2,7 +2,12 @@ nrf5-ble-docomo-linking
 =======================
 
  This repository contains code examples that show how to implement DoCoMo Linking BLE device on nRF5. For more information about DoCoMo Linking IoT project, please visit https://linkingiot.com/en/.
- 
+
+Linking Spec versions
+---------------------
+Linking Advertise Information Format Spec, v2.0.2, 2016-08-08
+
+
 Requirements
 ------------
 The following toolchains/devices have been used for testing and verification:

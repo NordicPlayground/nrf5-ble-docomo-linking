@@ -37,8 +37,9 @@
 #include "nrf.h"
 #include "nrf_temp.h"
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "ble_pdlp_beacon.h"
+#include "ble_pdlp_common.h"
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -119,158 +120,29 @@
 #define DBG_WFE_END
 #endif
 
+#ifdef NRF52
+#define FPU_EXCEPTION_MASK                          0x0000009F          //!< FPU exception mask used to clear exceptions in FPSCR register.
+#define FPU_FPSCR_REG_STACK_OFF                     0x40                //!< Offset of FPSCR register stacked during interrupt handling in FPU part stack.
+#endif
+
 #define HFCLK_STARTUP_TIME_US                       (1600)              /* The time in microseconds it takes to start up the HF clock*. */
 #define INTERVAL_US                                 (300000)            /* The time in microseconds between advertising events. */
 #define INITIAL_TIMEOUT                             (INTERVAL_US)       /* The time in microseconds until adverising the first time. */
 #define START_OF_INTERVAL_TO_SENSOR_READ_TIME_US    (INTERVAL_US / 2)   /* The time from the start of the latest advertising event until reading the sensor. */
 #define SENSOR_SKIP_READ_COUNT                      (10)                /* The number of advertising events between reading the sensor. */
 
-
 #if INITIAL_TIMEOUT - HFCLK_STARTUP_TIME_US < 400
 #error "Initial timeout too short!"
 #endif
 
-
-#define BD_ADDR_OFFS                (3)     /* BLE device address offest of the beacon advertising pdu. */
-#define M_BD_ADDR_SIZE              (6)     /* BLE device address size. */
-
-#define SINT16_SERVICE_DATA_OFFS    (38)    /* The offset of the temperature in the beacon advertising pdu */
-
-/* The linking beacon service types.
- */
-typedef enum
-{
-    M_SERVICE_TYPE_NONE = 0,
-    M_SERVICE_TYPE_TEMPERATURE,
-    M_SERVICE_TYPE_HUMIDITY,
-    M_SERVICE_TYPE_AIRPRESSURE,
-    M_SERVICE_TYPE_BATTERY,
-    M_SERVICE_TYPE_BUTTON,
-    M_SERVICE_TYPE_GENERAL
-} m_beacon_service_type_t;
-
 // Configuration Linking Beacon service type
-static uint32_t m_service_type = M_SERVICE_TYPE_TEMPERATURE;  /* loop Temperature/Humidity/Air pressure */
+static uint32_t m_service_type = LINKING_SERVICE_TYPE_TEMPERATURE;  /* loop Temperature/Humidity/Air pressure */
 
 static bool volatile m_radio_isr_called;    /* Indicates that the radio ISR has executed. */
 static bool volatile m_rtc_isr_called;      /* Indicates that the RTC ISR has executed. */
 static uint32_t m_time_us;                  /* Keeps track of the latest scheduled point in time. */
 static uint32_t m_skip_read_counter = 0;    /* Keeps track on when to read the sensor. */
 static uint8_t m_adv_pdu[40];               /* The RAM representation of the advertising PDU. */
-
-//Single precision (float) gives you 23 bits of significand, 8 bits of exponent, and 1 sign bit.
-//Double precision (double) gives you 52 bits of significand, 11 bits of exponent, and 1 sign bit.
-// After IEEE754 conversion by the union structure
-//  The sign is stored in bit 32.
-//  The exponent can be computed from bits 24-31 by subtracting 127. 
-//  The mantissa (also known as significand or fraction) is stored in bits 1-23
-// Reference http://www.h-schmidt.net/FloatConverter/IEEE754.html
-union IEEE754_Converter{
-    float f_val;
-    union {
-      signed int s_val;
-      unsigned int u_val;
-    } i_val;
-};
-
-// Convert a float to 12-bit IEEE754 format (ID1) as described by Linking spec)
-// bit 11     sign
-// bit 7-10   exponent
-// bit 0-6    fraction
-static uint16_t IEEE754_Convert_ID1(float f_value)
-{
-    union IEEE754_Converter value;
-    value.f_val  = f_value;
-
-    int8_t sign       = (  value.i_val.s_val >> 31) & 0x1;
-    int8_t exponent   = (((value.i_val.s_val >> 23) & 0xFF) - 127 + 7);   // 4-bit, with DoCoMo adjustment
-    int16_t fraction  = (( value.i_val.s_val & 0x7FFFFF) >> 16);          // 7-bit
-    if (f_value == 0.0f)
-    {
-        // Zero
-        return (sign<<11);
-    }
-    else if (exponent == 0)
-    {
-        // Non-normalization
-        return (sign<<11) | ((fraction&0x7F) + 0x1);  // Rounding (due to double precision)
-    }
-    else if (exponent == 0xF)
-    {
-        // Maximal
-        return ((sign<<11) | (exponent<<8));
-    }
-    else
-    {
-        // Normalization 
-        return (sign<<11) | (exponent<<7) | (fraction&0x7F);
-    }
-}
-
-// Convert a float to 12-bit IEEE754 format (ID2) as described by Linking spec)
-// bit 8-11   exponent
-// bit 0-7    fraction
-static uint16_t IEEE754_Convert_ID2(float f_value)
-{
-    union IEEE754_Converter value;
-    value.f_val  = f_value;
-
-    uint16_t exponent = ((value.i_val.u_val >> 23) & 0xFF) - 127 + 7;   // 4-bit, with DoCoMo adjustment
-    uint16_t fraction = ((value.i_val.u_val & 0x7FFFFF) >> 15);         // 8-bit
-    if (f_value == 0.0f)
-    {
-        // Zero
-        return 0x0000;
-    }
-    else if (exponent == 0)
-    {
-        // Non-normalization
-        return (fraction&0xFF) + 0x1;  // Rounding (due to double precision)
-    }
-    else if (exponent == 0xF)
-    {
-        // Maximal
-        return (exponent<<8);
-    }
-    else
-    {
-        // Normalization 
-        return (exponent<<8) | (fraction&0xFF);
-    }
-}
-
-// Convert a float to 12-bit IEEE754 format (ID3) as described by Linking spec)
-// bit 7-11   exponent
-// bit 0-6    fraction
-static uint16_t IEEE754_Convert_ID3(float f_value)
-{
-    union IEEE754_Converter value;
-    value.f_val  = f_value;
-
-    uint16_t exponent = ((value.i_val.u_val >> 23) & 0xFF) - 127 + 15;   // 4-bit, with DoCoMo adjustment
-    uint16_t fraction = ((value.i_val.u_val & 0x7FFFFF) >> 16);          // 7-bit
-
-    if (f_value == 0.0f)
-    {
-        // Zero
-        return 0x0000;
-    }
-    else if (exponent == 0)
-    {
-        // Non-normalization
-        return (fraction&0x7F) + 0x1;  // Rounding (due to double precision)
-    }
-    else if (exponent == 0x1F)
-    {
-        // Maximal
-        return (exponent<<7);
-    }
-    else
-    {
-        // Normalization 
-        return (exponent<<7) | (fraction&0x7F);
-    }
-}
 
 /* Initializes the beacon advertising PDU.
  */
@@ -370,48 +242,70 @@ static void m_beacon_pdu_sensor_data_set(uint8_t * p_beacon_pdu)
     }
   
     p_beacon_pdu[SINT16_SERVICE_DATA_OFFS] = m_service_type << 4;  // ServiceID (4-bit)
-    if ( m_service_type == M_SERVICE_TYPE_TEMPERATURE)
+    if ( m_service_type == LINKING_SERVICE_TYPE_TEMPERATURE)
     {
         float f_temp = m_beacon_read_soc_temp();
-        uint16_t u_temp = IEEE754_Convert_ID1(f_temp);
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (M_SERVICE_TYPE_TEMPERATURE << 4) & 0xF0;   // Up 4-bits, Service ID
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_temp >> 8) & 0xF;                        // Low 4-bits (sign and first 3-bit of exponent)
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_temp >> 0) & 0xFF;                       // 4th bit of exponent and fraction
-        m_service_type = M_SERVICE_TYPE_HUMIDITY;  // next Humidity
+        uint16_t u_temp = IEEE754_Convert_Temperature(f_temp);
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (LINKING_SERVICE_TYPE_TEMPERATURE << 4) & 0xF0;   // Up 4-bits, Service ID
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_temp >> 8) & 0xF;                              // Low 4-bits (sign and first 3-bit of exponent)
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_temp >> 0) & 0xFF;                             // 4th bit of exponent and fraction
+        m_service_type = LINKING_SERVICE_TYPE_HUMIDITY;  // next Humidity
     }
-    else if (m_service_type == M_SERVICE_TYPE_HUMIDITY)
+    else if (m_service_type == LINKING_SERVICE_TYPE_HUMIDITY)
     {
         float f_humidity = 155.5f + simulated_data_change;
-        uint16_t u_humidity = IEEE754_Convert_ID2(f_humidity);
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (M_SERVICE_TYPE_HUMIDITY << 4) & 0xF0;      // Up 4-bits, Service ID
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_humidity >> 8) & 0xF;                    // Low 4-bits (exponent)
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_humidity >> 0) & 0xFF;                   // fraction
-        m_service_type = M_SERVICE_TYPE_AIRPRESSURE;  // next Air Pressure
+        uint16_t u_humidity = IEEE754_Convert_Humidity(f_humidity);
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (LINKING_SERVICE_TYPE_HUMIDITY << 4) & 0xF0;      // Up 4-bits, Service ID
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_humidity >> 8) & 0xF;                          // Low 4-bits (exponent)
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_humidity >> 0) & 0xFF;                         // fraction
+        m_service_type = LINKING_SERVICE_TYPE_AIRPRESSURE;  // next Air Pressure
     }
-    else if (m_service_type == M_SERVICE_TYPE_AIRPRESSURE)
+    else if (m_service_type == LINKING_SERVICE_TYPE_AIRPRESSURE)
     {
         float f_pressure = 34567.0f  + simulated_data_change*10;
-        uint16_t u_perssure = IEEE754_Convert_ID3(f_pressure);
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (M_SERVICE_TYPE_AIRPRESSURE << 4) & 0xF0;   // Up 4-bits, Service ID
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_perssure >> 8) & 0xF;                    // Low 4-bits (first 4-bit of exponent)
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_perssure >> 0) & 0xFF;                   // 5th bit of exponent and fraction
-        m_service_type = M_SERVICE_TYPE_TEMPERATURE;  // next Temperature
+        uint16_t u_perssure = IEEE754_Convert_Air_Pressure(f_pressure);
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (LINKING_SERVICE_TYPE_AIRPRESSURE << 4) & 0xF0;   // Up 4-bits, Service ID
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_perssure >> 8) & 0xF;                          // Low 4-bits (first 4-bit of exponent)
+        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_perssure >> 0) & 0xFF;                         // 5th bit of exponent and fraction
+        m_service_type = LINKING_SERVICE_TYPE_TEMPERATURE;  // next Temperature
     }
-    else if (m_service_type == M_SERVICE_TYPE_BATTERY)
+    // Below service types are NOT included int testing
+    else if (m_service_type == LINKING_SERVICE_TYPE_BATTERY)
     {
-        bool charge_needed = true;
-        uint16_t u_battery = 53;    // 53%
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (M_SERVICE_TYPE_BATTERY << 4) & 0xF0;       // Up 4-bits, Service ID
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (charge_needed << 3);                       // Charge needed flag
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_battery >> 8) & 0x3;                     // First 3-bit of percentage
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_battery >> 0) & 0xFF;                    // Last 8-bit of percentage
+        linking_battery_info_t info;
+        info.service_id     = LINKING_SERVICE_TYPE_BATTERY;
+        info.charge_needed  = true;
+        info.battery_level  = 53;   // 53%, needs to convert from float to int (when spec ready)
+        memcpy(&(p_beacon_pdu[SINT16_SERVICE_DATA_OFFS]), &info, sizeof(linking_battery_info_t));
     }
-    else if (m_service_type == M_SERVICE_TYPE_BUTTON)
+    else if (m_service_type == LINKING_SERVICE_TYPE_BUTTON)
     {
-        uint16_t u_button_id = 0x02;   // ENTER, see PDNS sec
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ]  = (M_SERVICE_TYPE_BUTTON << 4) & 0xF0;        // Up 4-bits, Service ID
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS    ] |= (u_button_id >> 8) & 0xF;                   // Low 4-bits (first 4-bit of button_id)
-        p_beacon_pdu[SINT16_SERVICE_DATA_OFFS + 1]  = (u_button_id >> 0) & 0xFF;                  // Last 8-bit of button_id
+        linking_button_info_t info;
+        info.service_id = LINKING_SERVICE_TYPE_BUTTON;
+        info.button_id  = 0x02;  // ENTER, see PDNS sec
+        memcpy(&(p_beacon_pdu[SINT16_SERVICE_DATA_OFFS]), &info, sizeof(linking_button_info_t));
+    }
+    else if (m_service_type == LINKING_SERVICE_TYPE_OPEN_CLOSE_SENSE)
+    {
+        linking_openclose_sensor_info_t info;
+        info.service_id       = LINKING_SERVICE_TYPE_OPEN_CLOSE_SENSE;
+        info.open_close_flag  = 0;  // Open
+        info.open_count       = 100;
+        memcpy(&(p_beacon_pdu[SINT16_SERVICE_DATA_OFFS]), &info, sizeof(linking_openclose_sensor_info_t));
+    }
+    else if (m_service_type == LINKING_SERVICE_TYPE_HUMAN_SENSE)
+    {
+        linking_human_sensor_info_t info;
+        info.service_id     = LINKING_SERVICE_TYPE_HUMAN_SENSE;
+        info.human_sensed   = true;
+        memcpy(&(p_beacon_pdu[SINT16_SERVICE_DATA_OFFS]), &info, sizeof(linking_human_sensor_info_t));
+    }
+    else if (m_service_type == LINKING_SERVICE_TYPE_VIBRATION_SENSE)
+    {
+        linking_vibration_sensor_info_t info;
+        info.service_id         = LINKING_SERVICE_TYPE_VIBRATION_SENSE;
+        info.vibration_sensed   = true;
+        memcpy(&(p_beacon_pdu[SINT16_SERVICE_DATA_OFFS]), &info, sizeof(linking_vibration_sensor_info_t));
     }
 }
 
@@ -517,8 +411,14 @@ int main(void)
 
     NRF_GPIO->OUTCLR = 0xFFFFFFFF;
     NRF_GPIO->DIRCLR = 0xFFFFFFFF;
-        
-        
+
+#ifdef FPU_INTERRUPT_MODE
+    // Enable FPU interrupt
+    NVIC_SetPriority(FPU_IRQn, 6);   // nRF52 _PRIO_APP_LOW = 6
+    NVIC_ClearPendingIRQ(FPU_IRQn);
+    NVIC_EnableIRQ(FPU_IRQn);
+#endif
+
 #ifdef DBG_WFE_BEGIN_PIN
     NRF_GPIO->OUTSET = (1 << DBG_WFE_BEGIN_PIN);
     NRF_GPIO->DIRSET = (1 << DBG_WFE_BEGIN_PIN);
@@ -542,7 +442,17 @@ int main(void)
     NRF_PPI->CHENSET = (PPI_CHEN_CH5_Enabled << PPI_CHEN_CH5_Pos)
                      | (PPI_CHEN_CH6_Enabled << PPI_CHEN_CH6_Pos); 
 #endif
-    
+
+#ifdef FPU_INTERRUPT_MODE
+    /* Clear FPSCR register and clear pending FPU interrupts. This code is base on
+     * nRF5x_release_notes.txt in documentation folder. It is necessary part of code when
+     * application using power saving mode and after handling FPU errors in polling mode.
+     */
+    __set_FPSCR(__get_FPSCR() & ~(FPU_EXCEPTION_MASK));
+    (void) __get_FPSCR();
+    NVIC_ClearPendingIRQ(FPU_IRQn);
+#endif
+
     for (;;)
     {
         beacon_handler();
@@ -556,7 +466,6 @@ void RADIO_IRQHandler(void)
     m_radio_isr_called = true;    
 }
 
-
 void RTC0_IRQHandler(void)
 {
     NRF_RTC0->EVTENCLR = (RTC_EVTENCLR_COMPARE0_Enabled << RTC_EVTENCLR_COMPARE0_Pos);
@@ -565,3 +474,23 @@ void RTC0_IRQHandler(void)
     
     m_rtc_isr_called = true;
 }
+
+#ifdef FPU_INTERRUPT_MODE
+/**
+ * @brief FPU Interrupt handler. Clearing exception flag at the stack.
+ *
+ * Function clears exception flag in FPSCR register and at the stack. During interrupt handler
+ * execution FPU registers might be copied to the stack (see lazy stacking option) and
+ * it is necessary to clear data at the stack which will be recovered in the return from
+ * interrupt handling.
+ */
+void FPU_IRQHandler(void)
+{
+    // Prepare pointer to stack address with pushed FPSCR register
+    uint32_t * fpscr = (uint32_t * )(FPU->FPCAR + FPU_FPSCR_REG_STACK_OFF);
+    // Execute FPU instruction to activate lazy stacking
+    (void)__get_FPSCR();
+    // Clear flags in stacked FPSCR register
+    *fpscr = *fpscr & ~(FPU_EXCEPTION_MASK);
+}
+#endif
