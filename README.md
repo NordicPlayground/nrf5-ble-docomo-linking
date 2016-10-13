@@ -5,17 +5,17 @@ nrf5-ble-docomo-linking
 
 Linking Spec versions
 ---------------------
-Linking Advertise Information Format Specification, v2.0.2, 2016-08-08
+- Linking Advertise Information Format Specification, v2.0.2, 2016-08-08
 
-PeripheralDeviceLinkingProfile on BLE Specification, v2.0, 2016-07-25
-PeripheralDevicePropertyInformationService on BLE Specification, v2.0, 2016-07-25
-PeripheralDeviceOperationService on BLE Specification, v2.0, 2016-07-25
-PeripheralDeviceNotificationService on BLE Specification, v2.0, 2016-07-25
-PeripheralDeviceSettingOperationService on BLE Specification, v2.0, 2016-07-25
-PeripheralDeviceSensorInformationService on BLE Specification, v2.0, 2016-07-25
+- PeripheralDeviceLinkingProfile on BLE Specification, v2.0, 2016-07-25
+- PeripheralDevicePropertyInformationService on BLE Specification, v2.0, 2016-07-25
+- PeripheralDeviceOperationService on BLE Specification, v2.0, 2016-07-25
+- PeripheralDeviceNotificationService on BLE Specification, v2.0, 2016-07-25
+- PeripheralDeviceSettingOperationService on BLE Specification, v2.0, 2016-07-25
+- PeripheralDeviceSensorInformationService on BLE Specification, v2.0, 2016-07-25
 
-Device Setting Information Format Specification, v2.0, 2016-07-25
-Operation sequence with periphral devices in use cases, v1.3, 2016-02-17
+- Device Setting Information Format Specification, v2.0, 2016-07-25
+- Operation sequence with periphral devices in use cases, v1.3, 2016-02-17
 
 Requirements
 ------------
@@ -28,7 +28,7 @@ The following toolchains/devices have been used for testing and verification:
 
 To compile it, clone the repository into the \nRF5_SDK_11.0.0_89a8197 folder. 
 
-If you download the zip, please copy \components\ble\ble_services\experimental_ble_pdlp to \nRF5_SDK_11.0.0_89a8197\components\ble\ble_services, and \examples\ble_peripheral\* to \nRF5_SDK_11.0.0_89a8197\examples\ble_peripheral.
+If you download the zip, please copy \components\ble\ble_services\experimental_ble_pdlp to "\nRF5_SDK_11.0.0_89a8197\components\ble\ble_services", and \examples\ble_peripheral\<all> to "\nRF5_SDK_11.0.0_89a8197\examples\ble_peripheral".
 
 Documentation
 -------------
