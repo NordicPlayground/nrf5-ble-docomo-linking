@@ -13,6 +13,7 @@
 #include "ble_srv_common.h"
 #include "sdk_common.h"
 #include "ble_pdlp.h"
+#include "nrf_log.h"
 
 #define ERROR_CHECK(err_code)                           \
     do                                                  \
@@ -677,13 +678,19 @@ static ble_pdls_result_code_t PDNS_service_handler(ble_pdls_t * p_pdls, uint16_t
                 break;
               case PDNS_PARAM_VABRATIONPATTERN:
                 paramdata.p_val = event_data.data.notifyinfo.vibratiobpattern;
-                result = pdls_decode_param_opaque(m_data_pos, PDNS_PARAM_RUMBLINGSETTING, &paramdata); 
+                result = pdls_decode_param_opaque(m_data_pos, PDNS_PARAM_VABRATIONPATTERN, &paramdata); 
                 ERROR_CHECK(result);
                 m_data_pos += paramdata.len; paramindex++;
                 break;
               case PDNS_PARAM_LEDPATTERN:
                 paramdata.p_val = event_data.data.notifyinfo.ledpattern;
-                result = pdls_decode_param_opaque(m_data_pos, PDNS_PARAM_RUMBLINGSETTING, &paramdata);
+                result = pdls_decode_param_opaque(m_data_pos, PDNS_PARAM_LEDPATTERN, &paramdata);
+                ERROR_CHECK(result);
+                m_data_pos += paramdata.len; paramindex++;
+                break;
+              case PDNS_PARAM_BEEPPATTERN:
+                paramdata.p_val = event_data.data.notifyinfo.beeppattern;
+                result = pdls_decode_param_opaque(m_data_pos, PDNS_PARAM_BEEPPATTERN, &paramdata);
                 ERROR_CHECK(result);
                 m_data_pos += paramdata.len; paramindex++;
                 break;

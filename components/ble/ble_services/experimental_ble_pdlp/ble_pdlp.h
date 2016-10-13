@@ -359,6 +359,7 @@ typedef enum
     PDNS_PARAM_PACKAGE,
     PDNS_PARAM_CLASS,
     PDNS_PARAM_SHARINGINFORMATION,
+    PDNS_PARAM_BEEPPATTERN,
     PDNS_PARAM_INVALID
 } ble_pdns_params_type_t;
 
@@ -380,6 +381,7 @@ typedef enum
 {
     PDNS_RUMBLING_SETTING_LED,
     PDNS_RUMBLING_SETTING_VIBRATION,
+    PDNS_RUMBLING_SETTING_BEEP,
     PDNS_RUMBLING_SETTING_MAX
 } ble_pdns_rumbling_setting_t;
 
@@ -392,6 +394,7 @@ typedef struct
   ble_pdns_rumbling_setting_t rumblingsetting;
   uint8_t vibratiobpattern[4];  //TBD
   uint8_t ledpattern[5];        //TBD
+  uint8_t beeppattern[4];       //TBD
 } ble_pdns_notify_info_t;
 
 /**@brief PDNS get notify detail data response */
@@ -473,6 +476,7 @@ typedef enum
     PDSOS_SETTING_LEDCOLORNAME,
     PDSOS_SETTING_LEDPATTERNNAME,
     PDSOS_SETTING_VIBRATIONPATTERNNAME,
+    PDSOS_SETTING_BEEPPATTERNNAME,
     PDSOS_SETTING_MAX
 } ble_pdsos_setting_name_type_t;
 
@@ -518,14 +522,22 @@ typedef struct
     uint8_t pattern_selected;
 } ble_pdsos_vibrator_setting_info;
 
+/**@brief PDSOS Beep setting info. */
+typedef struct
+{
+    uint8_t pattern_num;
+    uint8_t pattern_selected;
+} ble_pdsos_beep_setting_info;
+
 /**@brief PDSOS setting info. */
 typedef struct
 {
-    uint8_t setting_id;   //0: LED; 1: Vibration
+    uint8_t setting_id;   //0: LED; 1: Vibration; 2: Beep
     uint8_t notify_time;  //ble_pdsos_setting_notify_time_t
     union {
       ble_pdsos_led_setting_info led_setting;
       ble_pdsos_vibrator_setting_info vibrator_setting;
+      ble_pdsos_beep_setting_info beep_setting;
     } setting;
 } ble_pdsos_setting_info;
 
